@@ -1,2 +1,2 @@
 yt-dlp
-pyTelegramBotAPI
+python-telegram-bot==20.7
