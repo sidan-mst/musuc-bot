@@ -18,7 +18,7 @@ def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
+    update.message.reply_text(
         "👋 Welcome!\n\nJoin our channel to use this bot.",
         reply_markup=reply_markup
     )
