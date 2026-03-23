@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
 import os
-BOT_TOKEN = os.getenv("8413337745:AAHq_rmasfZWnUoxqYkydlqEHT4Gp9b0Tws")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 CHANNEL_ID = -1003606196677
 CHANNEL_LINK = "https://t.me/+mscj29jMDdwyYzg9"
