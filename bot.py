@@ -3,7 +3,8 @@ import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
-BOT_TOKEN = "8413337745:AAHq_rmasfZWnUoxqYkydlqEHT4Gp9b0Tws"
+import os
+BOT_TOKEN = os.getenv("8413337745:AAHq_rmasfZWnUoxqYkydlqEHT4Gp9b0Tws")
 
 CHANNEL_ID = -1003606196677
 CHANNEL_LINK = "https://t.me/+mscj29jMDdwyYzg9"
@@ -75,10 +76,17 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {e}")
 
 # 🚀 MAIN
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+import asyncio
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(check_subscription, pattern="check"))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_audio))
+async def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-app.run_polling()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(check_subscription, pattern="check"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_audio))
+
+    print("Bot started...")
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
