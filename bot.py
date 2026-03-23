@@ -38,7 +38,7 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except:
         await query.answer("❌ Error checking", show_alert=True)
 
-# 🎵 DOWNLOAD AUDIO (FIXED VERSION)
+# 🎵 DOWNLOAD AUDIO (M4A VERSION - FIXES FORMAT ERROR)
 async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
@@ -48,45 +48,64 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏳ Downloading...")
 
-    def find_mp3_file():
+    def find_audio_file():
+        # Look for M4A, MP4, WEBM (in priority order)
         for file in os.listdir('.'):
-            if file.endswith('.mp3'):
+            if file.endswith('.m4a'):
+                return file
+            elif file.endswith('.mp4'):
+                return file
+            elif file.endswith('.webm'):
                 return file
         return None
 
     ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best[height<=480]/best',  # ✅ FIXED FORMAT
-        'outtmpl': '%(title)s.%(ext)s',  # Dynamic title-based name
+        'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[height<=480]/best',  # ✅ Bulletproof fallback
+        'outtmpl': '%(title)s.%(ext)s',
         'quiet': True,
         'noplaylist': True,
         'geo_bypass': True,
         'ignoreerrors': True,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '0',  # Best quality
-        }],
+        # ✅ NO postprocessor = Direct download (no MP3 conversion)
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])  # Downloads + converts to MP3
+            ydl.download([url])
 
-        mp3_file = find_mp3_file()
-        if not mp3_file:
+        audio_file = find_audio_file()
+        if not audio_file:
             await update.message.reply_text("❌ No audio found. Video may be restricted.")
+            # Cleanup any leftover files
+            for f in os.listdir('.'):
+                if f.endswith(('.m4a', '.mp4', '.webm')):
+                    os.remove(f)
             return
 
-        # Clean filename for Telegram
-        safe_name = re.sub(r'[<>:"/\\|?*]', '', mp3_file)[:100]
-        with open(mp3_file, "rb") as f:
-            await update.message.reply_audio(f, title=safe_name)
+        # Clean filename for Telegram (remove invalid chars)
+        safe_name = re.sub(r'[<>:"/\\|?*]', '', audio_file)[:100]
+        
+        with open(audio_file, "rb") as f:
+            await update.message.reply_audio(
+                f, 
+                title=safe_name, 
+                performer="MusicGo 🎵",
+                caption=f"🎵 Downloaded from YouTube"
+            )
 
-        os.remove(mp3_file)
+        # Cleanup
+        os.remove(audio_file)
 
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {str(e)[:200]}
 Try a different video.")
+        # Cleanup on error
+        for f in os.listdir('.'):
+            if f.endswith(('.m4a', '.mp4', '.webm')):
+                try:
+                    os.remove(f)
+                except:
+                    pass
 
 # 🚀 MAIN
 def main():
@@ -97,7 +116,7 @@ def main():
     dp.add_handler(CallbackQueryHandler(check_subscription, pattern="check"))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, download_audio))
 
-    print("Bot started...")
+    print("🎵 MusicGo Bot started...")
     updater.start_polling()
     updater.idle()
 
