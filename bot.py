@@ -4,6 +4,9 @@ import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ContextTypes
 
+# GLOBAL PROGRESS TRACKER
+PROGRESS_MSG_ID = None
+
 # CONFIG
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = -1003606196677
@@ -38,15 +41,18 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except:
         await query.answer("❌ Error checking", show_alert=True)
 
-# 🎵 DOWNLOAD AUDIO (FINAL BULLETPROOF - NO FORMAT SELECTION)
+# 🎵 DOWNLOAD AUDIO (PROGRESS + BULLETPROOF)
 async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global PROGRESS_MSG_ID
     url = update.message.text
 
     if "youtu" not in url:
         await update.message.reply_text("❌ Send valid YouTube link")
         return
 
-    await update.message.reply_text("⏳ Downloading...")
+    # 📊 INITIAL PROGRESS MESSAGE
+    progress_msg = await update.message.reply_text("⏳ Downloading... 0%")
+    PROGRESS_MSG_ID = progress_msg.message_id
 
     def find_audio_file():
         for file in os.listdir('.'):
@@ -54,9 +60,25 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return file
         return None
 
-    # 🔥 NO FORMAT SELECTOR = GRABS WHATEVER IS AVAILABLE
+    def progress_hook(d):
+        global PROGRESS_MSG_ID
+        if d['status'] == 'downloading' and PROGRESS_MSG_ID:
+            try:
+                percent = d.get('_percent_str', '0%')
+                speed = d.get('_speed_str', 'N/A')
+                eta = d.get('_eta_str', 'N/A')
+                
+                context.bot.edit_message_text(
+                    chat_id=update.effective_chat.id,
+                    message_id=PROGRESS_MSG_ID,
+                    text=f"⏳ Downloading... {percent}
+⚡ Speed: {speed} | ⏱️ ETA: {eta}"
+                )
+            except:
+                pass
+
     ydl_opts = {
-        'format': 'best',  # Simplest possible - always works
+        'format': 'best',  # Always works
         'outtmpl': 'music.%(ext)s',
         'quiet': True,
         'noplaylist': True,
@@ -65,13 +87,19 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'extractaudio': True,
         'audioformat': 'm4a',
         'player_client': ['ios', 'android', 'web'],
-        'extract_flat': False,
         'no_warnings': True,
+        'progress_hooks': [progress_hook],  # 🔥 LIVE PROGRESS
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
+        # 🗑️ DELETE PROGRESS MESSAGE
+        try:
+            await context.bot.delete_message(update.effective_chat.id, PROGRESS_MSG_ID)
+        except:
+            pass
 
         audio_file = find_audio_file()
         if not audio_file:
@@ -86,7 +114,7 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f, 
                 title=safe_name, 
                 performer="MusicGo 🎵",
-                caption="🎵 Downloaded from YouTube"
+                caption="🎵 Downloaded from YouTube ✅"
             )
 
         os.remove(audio_file)
@@ -97,7 +125,6 @@ Try a different video.")
         cleanup()
 
 def cleanup():
-    # Clean up any leftover files
     for f in os.listdir('.'):
         if any(ext in f.lower() for ext in ['.m4a', '.mp4', '.webm', '.mkv', '.mp3', '.aac']):
             try:
@@ -114,9 +141,9 @@ def main():
     dp.add_handler(CallbackQueryHandler(check_subscription, pattern="check"))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, download_audio))
 
-    print("🎵 MusicGo Bot started...")
+    print("🎵 MusicGo Bot started with LIVE PROGRESS...")
     updater.start_polling()
     updater.idle()
 
-if __name__ == "____main__":
+if __name__ == "__main__":
     main()
