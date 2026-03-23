@@ -51,11 +51,12 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Downloading...")
 
     ydl_opts = {
-    'format': 'best',
+    'format': 'bestaudio/best',
     'outtmpl': 'audio.%(ext)s',
-    'cookiefile': 'cookies.txt',
     'quiet': True,
     'noplaylist': True,
+    'geo_bypass': True,
+    'ignoreerrors': True,
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'mp3',
@@ -64,16 +65,18 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        mp3_file = filename.rsplit(".", 1)[0] + ".mp3"
 
-        with open("audio.mp3", "rb") as f:
-            await update.message.reply_audio(f)
+    with open(mp3_file, "rb") as f:
+        update.message.reply_audio(f)
 
-        os.remove("audio.mp3")
+    os.remove(mp3_file)
 
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+except Exception as e:
+    update.message.reply_text(f"❌ Error: {e}")
 
 # 🚀 MAIN
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
