@@ -55,10 +55,15 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     PROGRESS_MSG_ID = progress_msg.message_id
 
     def find_audio_file():
-        for file in os.listdir('.'):
-            if any(ext in file.lower() for ext in ['.m4a', '.mp4', '.webm', '.mkv', '.mp3', '.aac']):
-                return file
-        return None
+    files = [f for f in os.listdir('.') if any(ext in f.lower() for ext in ['.m4a', '.mp4', '.webm', '.mkv', '.mp3', '.aac'])]
+    return files[0] if files else None
+
+ydl_opts = {
+    'format': 'best',
+    'outtmpl': '%(title)s.%(ext)s',  # ← VIDEO TITLE AS FILENAME
+    'quiet': True,
+    # ... rest stays same
+}
 
     def progress_hook(d):
         global PROGRESS_MSG_ID
@@ -79,7 +84,7 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ydl_opts = {
         'format': 'best',  # Always works
-        'outtmpl': 'music.%(ext)s',
+        'outtmpl': '%(title)s.%(ext)s',
         'quiet': True,
         'noplaylist': True,
         'geo_bypass': True,
