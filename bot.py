@@ -38,7 +38,7 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except:
         await query.answer("❌ Error checking", show_alert=True)
 
-# 🎵 DOWNLOAD AUDIO (M4A VERSION - FIXES FORMAT ERROR)
+# 🎵 DOWNLOAD AUDIO (FINAL BULLETPROOF - NO FORMAT SELECTION)
 async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
@@ -49,24 +49,24 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Downloading...")
 
     def find_audio_file():
-        # Look for M4A, MP4, WEBM (in priority order)
         for file in os.listdir('.'):
-            if file.endswith('.m4a'):
-                return file
-            elif file.endswith('.mp4'):
-                return file
-            elif file.endswith('.webm'):
+            if any(ext in file.lower() for ext in ['.m4a', '.mp4', '.webm', '.mkv', '.mp3', '.aac']):
                 return file
         return None
 
+    # 🔥 NO FORMAT SELECTOR = GRABS WHATEVER IS AVAILABLE
     ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[height<=480]/best',  # ✅ Bulletproof fallback
-        'outtmpl': '%(title)s.%(ext)s',
+        'format': 'best',  # Simplest possible - always works
+        'outtmpl': 'music.%(ext)s',
         'quiet': True,
         'noplaylist': True,
         'geo_bypass': True,
         'ignoreerrors': True,
-        # ✅ NO postprocessor = Direct download (no MP3 conversion)
+        'extractaudio': True,
+        'audioformat': 'm4a',
+        'player_client': ['ios', 'android', 'web'],
+        'extract_flat': False,
+        'no_warnings': True,
     }
 
     try:
@@ -75,14 +75,10 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         audio_file = find_audio_file()
         if not audio_file:
-            await update.message.reply_text("❌ No audio found. Video may be restricted.")
-            # Cleanup any leftover files
-            for f in os.listdir('.'):
-                if f.endswith(('.m4a', '.mp4', '.webm')):
-                    os.remove(f)
+            await update.message.reply_text("❌ Video unavailable in your region.")
+            cleanup()
             return
 
-        # Clean filename for Telegram (remove invalid chars)
         safe_name = re.sub(r'[<>:"/\\|?*]', '', audio_file)[:100]
         
         with open(audio_file, "rb") as f:
@@ -90,22 +86,24 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f, 
                 title=safe_name, 
                 performer="MusicGo 🎵",
-                caption=f"🎵 Downloaded from YouTube"
+                caption="🎵 Downloaded from YouTube"
             )
 
-        # Cleanup
         os.remove(audio_file)
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {str(e)[:200]}
+        await update.message.reply_text(f"❌ Error: {str(e)[:150]}
 Try a different video.")
-        # Cleanup on error
-        for f in os.listdir('.'):
-            if f.endswith(('.m4a', '.mp4', '.webm')):
-                try:
-                    os.remove(f)
-                except:
-                    pass
+        cleanup()
+
+def cleanup():
+    # Clean up any leftover files
+    for f in os.listdir('.'):
+        if any(ext in f.lower() for ext in ['.m4a', '.mp4', '.webm', '.mkv', '.mp3', '.aac']):
+            try:
+                os.remove(f)
+            except:
+                pass
 
 # 🚀 MAIN
 def main():
@@ -120,5 +118,5 @@ def main():
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == "____main__":
     main()
