@@ -50,7 +50,7 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Downloading...")
 
     ydl_opts = {
-    'format': 'bestaudio/best/bestvideo+bestaudio',
+    'format': 'best',
     'outtmpl': 'audio.%(ext)s',
     'cookiefile': 'cookies.txt',
     'quiet': True,
