@@ -1,11 +1,11 @@
 import os
 import yt_dlp
+import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ContextTypes
 
-import os
+# CONFIG
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
 CHANNEL_ID = -1003606196677
 CHANNEL_LINK = "https://t.me/+mscj29jMDdwyYzg9"
 
@@ -15,11 +15,11 @@ def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)],
         [InlineKeyboardButton("✅ Try Again", callback_data="check")]
     ]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     update.message.reply_text(
-        "👋 Welcome!\n\nJoin our channel to use this bot.",
+        "👋 Welcome!
+
+Join our channel to use this bot.",
         reply_markup=reply_markup
     )
 
@@ -30,17 +30,15 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         member = await context.bot.get_chat_member(CHANNEL_ID, user_id)
-
         if member.status in ["member", "administrator", "creator"]:
             await query.answer()
             await query.message.reply_text("✅ You joined! Now send YouTube link 🎵")
         else:
             await query.answer("❌ Join channel first", show_alert=True)
-
     except:
         await query.answer("❌ Error checking", show_alert=True)
 
-# 🎵 DOWNLOAD AUDIO
+# 🎵 DOWNLOAD AUDIO (FIXED VERSION)
 async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
@@ -50,37 +48,47 @@ async def download_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏳ Downloading...")
 
+    def find_mp3_file():
+        for file in os.listdir('.'):
+            if file.endswith('.mp3'):
+                return file
+        return None
+
     ydl_opts = {
-    'format': 'bestaudio/best',
-    'outtmpl': 'audio.%(ext)s',
-    'quiet': True,
-    'noplaylist': True,
-    'geo_bypass': True,
-    'ignoreerrors': True,
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '128',
-    }],
+        'format': 'bestaudio[ext=m4a]/bestaudio/best[height<=480]/best',  # ✅ FIXED FORMAT
+        'outtmpl': '%(title)s.%(ext)s',  # Dynamic title-based name
+        'quiet': True,
+        'noplaylist': True,
+        'geo_bypass': True,
+        'ignoreerrors': True,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '0',  # Best quality
+        }],
     }
 
     try:
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        mp3_file = filename.rsplit(".", 1)[0] + ".mp3"
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])  # Downloads + converts to MP3
 
-    with open(mp3_file, "rb") as f:
-        update.message.reply_audio(f)
+        mp3_file = find_mp3_file()
+        if not mp3_file:
+            await update.message.reply_text("❌ No audio found. Video may be restricted.")
+            return
 
-    os.remove(mp3_file)
+        # Clean filename for Telegram
+        safe_name = re.sub(r'[<>:"/\\|?*]', '', mp3_file)[:100]
+        with open(mp3_file, "rb") as f:
+            await update.message.reply_audio(f, title=safe_name)
 
-except Exception as e:
-    update.message.reply_text(f"❌ Error: {e}")
+        os.remove(mp3_file)
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)[:200]}
+Try a different video.")
 
 # 🚀 MAIN
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
-
 def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
